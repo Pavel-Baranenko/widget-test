@@ -12,21 +12,21 @@
             padding: 20px;
             background: #f5f5f5;
         }
-        
+
         .controls {
             background: white;
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
-        
+
         .url-input {
             display: flex;
             gap: 10px;
             margin-bottom: 10px;
         }
-        
+
         .url-input input {
             flex: 1;
             padding: 10px;
@@ -34,7 +34,7 @@
             border-radius: 4px;
             font-size: 14px;
         }
-        
+
         .url-input button {
             padding: 10px 20px;
             background: #4CAF50;
@@ -43,30 +43,77 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        
+
         .url-input button:hover {
             background: #45a049;
         }
-        
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .download-btn {
+            padding: 10px 20px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .download-btn:hover {
+            background: #1976D2;
+        }
+
+        .clear-logs-btn {
+            padding: 10px 20px;
+            background: #ff9800;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .clear-logs-btn:hover {
+            background: #e68900;
+        }
+
         .current-url {
             font-size: 12px;
             color: #666;
             margin-top: 10px;
             word-break: break-all;
         }
-        
-        .status {
-            background: #e3f2fd;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-        
+
         iframe {
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             background: white;
+        }
+
+        .logs-preview {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .logs-preview h3 {
+            margin: 0 0 10px 0;
+            color: #fff;
+        }
+
+        .log-entry {
+            border-bottom: 1px solid #333;
+            padding: 5px;
+            margin-bottom: 5px;
         }
     </style>
 </head>
@@ -74,47 +121,178 @@
 <body>
     <div class="controls">
         <div class="url-input">
-            <input type="text" id="iframeUrl" style="flex: 1;" 
-                   placeholder="Введите URL виджета">
+            <input type="text" id="iframeUrl" style="flex: 1;" placeholder="Введите URL виджета">
             <button id="applyUrl">Применить</button>
         </div>
-        
+
+        <div class="button-group">
+            <button class="download-btn" id="downloadLogsBtn">Скачать logs.txt</button>
+            <button class="clear-logs-btn" id="clearLogsBtn">Очистить логи</button>
+        </div>
+
     </div>
-    
+
     <iframe id="ticketscloudIframe"
         src="https://869d2gah9-tc-to-tl.dev.freetc.net/v1/widgets/common?r=1&token=eyJhbGciOiJIUzI1NiIsImlzcyI6InN0YWdlLmZyZWV0Yy5uZXQiLCJ0eXAiOiJKV1QifQ.eyJwIjoiNjFmMTVlNWQ0ZDAyMzFlZTkxMGY0NTcyIn0.VqdcgHFoCUJkNtr7ugPh6orc5M6BtniQU4Ov60mqVfM&event=6900b7a8d8431e188799dfb5&s=1&lang=ru"
-        width="100%" height="600" frameborder="0" allow="payment *; clipboard-read; clipboard-write" loading="lazy">
+        width="100%" height="500" frameborder="0" allow="payment *; clipboard-read; clipboard-write" loading="lazy">
     </iframe>
+    <div class="logs-preview" id="logsPreview">
+        <h3>Предпросмотр логов</h3>
+        <div id="logsContent"></div>
+    </div>
 </body>
 
 <script>
     const urlInput = document.getElementById('iframeUrl');
     const applyBtn = document.getElementById('applyUrl');
     const iframe = document.getElementById('ticketscloudIframe');
-    
+        const downloadBtn = document.getElementById('downloadLogsBtn');
+        const clearLogsBtn = document.getElementById('clearLogsBtn');
+        const logsContentDiv = document.getElementById('logsContent');
+
+        // Массив для хранения логов
+        let logs = [];
+        let logCounter = 1;
+
+        // Функция добавления лога
+        function addLog(eventData, eventOrigin) {
+            const timestamp = new Date().toLocaleString('ru-RU', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+
+            const logEntry = {
+                id: logCounter++,
+                timestamp: timestamp,
+                action_name: eventData.action_name,
+                data: eventData,
+                origin: eventOrigin
+            };
+
+            logs.push(logEntry);
+            updateLogsDisplay();
+
+            // Также выводим в консоль
+            console.log("================================");
+            console.log(`[${timestamp}] Событие: ${eventData.action_name}`);
+            console.warn('Message', eventData);
+            console.log("================================");
+        }
+
+        function updateLogsDisplay() {
+
+            if (logs.length === 0) {
+                logsContentDiv.innerHTML = 'Логи будут отображаться здесь...';
+                return;
+            }
+
+            let html = '';
+            logs.slice().forEach(log => {
+                html += `
+                <div class="log-entry">
+                    <strong>[${log.timestamp}]</strong> 
+                    <span style="color: #4CAF50;">${log.action_name}</span>
+                    <details>
+                        <summary>Подробнее</summary>
+                        <pre style="margin: 5px 0 0 0; font-size: 11px; overflow-x: auto;">${JSON.stringify(log.data, null, 2)}</pre>
+                    </details>
+                </div>
+            `;
+            });
+            logsContentDiv.innerHTML = html;
+
+            document.getElementById('logsPreview').scrollTop = 0;
+        }
+
+        // Функция скачивания логов в файл
+        function downloadLogs() {
+            if (logs.length === 0) {
+                alert('Нет логов для сохранения');
+                return;
+            }
+
+            // Формируем содержимое файла
+            let fileContent = '=== Логи событий виджета Ticketscloud ===\n';
+            fileContent += `Дата экспорта: ${new Date().toLocaleString('ru-RU')}\n`;
+            fileContent += `Всего событий: ${logs.length}\n`;
+            fileContent += '='.repeat(60) + '\n\n';
+
+            logs.forEach(log => {
+                fileContent += `[${log.timestamp}] Событие: ${log.action_name}\n`;
+                fileContent += `\n${JSON.stringify(log.data, null, 2)}\n`;
+                fileContent += '-'.repeat(60) + '\n\n';
+            });
+
+                fileContent += '='.repeat(60) + '\n';
+                fileContent += `Конец файла. Всего событий: ${logs.length}\n`;
+
+                // Создаем и скачиваем файл
+                const blob = new Blob([fileContent], { type: 'text/plain; charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ticketscloud_logs_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                console.log(`✅ Логи сохранены в файл (${logs.length} событий)`);
+            }
+
+            // Функция очистки логов
+            function clearLogs() {
+                logs = [];
+                logCounter = 1;
+                updateLogsDisplay();
+                console.clear();
+            }
+
+            // Функция смены URL iframe
     function changeIframeUrl(newUrl) {
         if (!newUrl) return;
         iframe.src = newUrl;
+
+        // Добавляем системное событие о смене URL
+        addLog({
+            action_name: 'system_url_changed',
+            new_url: newUrl,
+            timestamp: new Date().toISOString()
+        }, window.location.origin);
+
         console.clear();
     }
-    
-    applyBtn.addEventListener('click', function() {
+
+        // Обработчик кнопки "Применить"
+        applyBtn.addEventListener('click', function () {
         const newUrl = urlInput.value.trim();
         if (newUrl) {
             changeIframeUrl(newUrl);
-        } 
-    });
-    
-    
-    window.addEventListener('message', function(event) {
-        if (event.data && event.data.action_name) {
-            console.log("================================");
-            console.warn('Message', event.data);
-            console.log("================================");
+        } else {
+            alert('Введите URL виджета');
         }
     });
-    
+
+        // Обработчик скачивания логов
+        downloadBtn.addEventListener('click', downloadLogs);
+
+        // Обработчик очистки логов
+        clearLogsBtn.addEventListener('click', clearLogs);
+
+        // Приём сообщений из iframe
+        window.addEventListener('message', function (event) {
+        if (event.data && event.data.action_name) {
+            addLog(event.data, event.origin);
+        }
+    });
+
+        // Инициализация
     updateCurrentUrlDisplay();
+        console.log('✅ Дебаггер запущен. Логи сохраняются и отображаются на странице');
 </script>
 
 </html>
