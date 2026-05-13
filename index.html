@@ -223,7 +223,7 @@
 
             logs.forEach(log => {
                 fileContent += `[${log.timestamp}] Событие: ${log.action_name}\n`;
-                fileContent += `\n${JSON.stringify(log.data, null, 2)}\n`;
+                fileContent += `y\n${JSON.stringify(log.data, null, 2)}\n`;
                 fileContent += '-'.repeat(60) + '\n\n';
             });
 
@@ -256,14 +256,6 @@
     function changeIframeUrl(newUrl) {
         if (!newUrl) return;
         iframe.src = newUrl;
-
-        // Добавляем системное событие о смене URL
-        addLog({
-            action_name: 'system_url_changed',
-            new_url: newUrl,
-            timestamp: new Date().toISOString()
-        }, window.location.origin);
-
         console.clear();
     }
 
